@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  wireguard1:
+    image: wireguard-container:latest
+    container_name: wireguard1
+    privileged: true
+    volumes:
+      - ./wireguard1:/etc/wireguard
+    command: /bin/sh -c "wg-quick up /etc/wireguard/wg0.conf && tail -f /dev/null"
+    networks:
+      wg-network:
+        ipv4_address: 192.168.0.2
+
+  wireguard2:
+    image: wireguard-container:latest
+    container_name: wireguard2
+    privileged: true
+    volumes:
+      - ./wireguard2:/etc/wireguard
+    command: /bin/sh -c "wg-quick up /etc/wireguard/wg0.conf && tail -f /dev/null"
+    networks:
+      wg-network:
+        ipv4_address: 192.168.0.3
+
+  wireguard3:
+    image: wireguard-container:latest
+    container_name: wireguard3
+    privileged: true
+    volumes:
+      - ./wireguard3:/etc/wireguard
+    command: /bin/sh -c "wg-quick up /etc/wireguard/wg0.conf && tail -f /dev/null"
+    networks:
+      wg-network:
+        ipv4_address: 192.168.0.4
+
+networks:
+  wg-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.0.0/24
