@@ -2,14 +2,13 @@
 FROM debian:bullseye-slim
 
 # Instalar WireGuard, net-tools, y ping
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        wireguard-tools \
-        iproute2 \
-        net-tools \
-        iputils-ping && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y \
+    wireguard \
+    net-tools \
+    iproute2 \
+    iputils-ping \
+    procps \
+    && apt-get clean
 
 # Crear un directorio para configuraciones de WireGuard
 RUN mkdir -p /etc/wireguard

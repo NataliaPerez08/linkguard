@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "linkguard_NataliaPerez08"
+name = "linkguard"
 version = "0.0.1"
 description = "A small example package"
 authors = ["Natalia Perez <author@example.com>"]
