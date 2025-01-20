@@ -4,3 +4,24 @@ CREATE TABLE user (
   email TEXT UNIQUE NOT NULL,
   profile_pic TEXT NOT NULL
 );
+
+CREATE TABLE vpn (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  mask_network TEXT NOT NULL,
+  ip_address TEXT NOT NULL,
+  FOREIGN KEY (user_id) REFERENCES user(id)
+);
+
+CREATE TABLE endpoint(
+  id TEXT PRIMARY KEY,
+  vpn_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  peer_ip TEXT NOT NULL,
+  peer_port TEXT NOT NULL,
+  private_ip TEXT NOT NULL,
+  private_key TEXT NOT NULL,
+  public_key TEXT NOT NULL,
+  FOREIGN KEY (vpn_id) REFERENCES vpn(id)
+);

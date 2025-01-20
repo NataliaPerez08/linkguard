@@ -1,3 +1,6 @@
+
+from linkguard.orquestador.db import get_db
+
 class Endpoint:
     def __init__(self, id_endpoint, name, private_network_id):
         self.id = id_endpoint
@@ -7,10 +10,7 @@ class Endpoint:
         self.wireguard_port = ""
         self.wireguard_private_key = ""
         self.wireguard_public_key = ""
-
         self.public_ip = ""
-
-        self.config_wireguard = dict()
 
     def get_id(self):
         return self.id
@@ -36,12 +36,6 @@ class Endpoint:
     def get_public_ip(self):
         return self.public_ip
     
-    def set_private_network_id(self, private_network_id):
-        self.private_network_id = private_network_id
-
-    def save_wireguard_config(self, config):
-        self.config_wireguard = config
-        
     def __str__(self) -> str:
         str_endpoint = "[Interface]\n"
         str_endpoint += "PrivateKey = " + self.wireguard_private_key + "\n"
@@ -53,3 +47,17 @@ class Endpoint:
         str_endpoint += "AllowedIPs = " + self.config_wireguard["allowed_ips"] + "\n"
         str_endpoint += "Endpoint = " + self.config_wireguard["public_ip"] + ":" + self.config_wireguard["port"] + "\n"
         return str_endpoint
+
+    @staticmethod
+    def get(endpoint_id):
+        db = get_db()
+        endpoint = db.execute(
+            "SELECT * FROM endpoint WHERE id = ?", (endpoint_id,)
+        ).fetchone()
+        if not endpoint:
+            return None
+
+        endpoint = Endpoint(
+            id_endpoint=endpoint[0], name=endpoint[1], private_network_id=endpoint[2]
+        )
+        return endpoint

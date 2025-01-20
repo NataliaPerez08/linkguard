@@ -18,8 +18,11 @@ from oauthlib.oauth2 import WebApplicationClient
 import requests
 
 # Internal imports
-from linkguard.orquestador.db import init_db_command
+from linkguard.orquestador.db import init_db_command,init_app
 from linkguard.orquestador.user import User
+from linkguard.orquestador.privateNetwork import PrivateNetwork
+from linkguard.orquestador.endpoint import Endpoint
+
 
 from dotenv import load_dotenv
 
@@ -55,12 +58,11 @@ GOOGLE_DISCOVERY_URL = ("https://accounts.google.com/.well-known/openid-configur
 login_manager = LoginManager()
 login_manager.init_app(app)
 
-# Naive database setup
 try:
     init_db_command()
-except sqlite3.OperationalError:
-    # Assume it's already been created
-    pass
+except Exception as e:
+    print(e)
+
 
 # OAuth 2 client setup
 client = WebApplicationClient(os.getenv('GOOGLE_CLIENT_ID'))
@@ -73,20 +75,16 @@ def load_user(user_id):
 @app.route("/")
 def index():
     if current_user.is_authenticated:
-        return (
-            "<p>Hello, {}! You're logged in! Email: {}</p>"
-            "<div><p>Google Profile Picture:</p>"
-            '<img src="{}" alt="Google profile pic"></img></div>'
-            '<a class="button" href="/logout">Logout</a>'.format(
-                current_user.name, current_user.email, current_user.profile_pic
-            )
-        )
+        # Get the session cookie
+        session_cookie = request.cookies.get(app.config['SESSION_COOKIE_NAME'])
+        return {"logged_in": True, "session_cookie": session_cookie}
     else:
-        return '<a class="button" href="/login">Google Login</a>'
+        return redirect(url_for("login"))
     
 def get_google_provider_cfg():
     return requests.get(GOOGLE_DISCOVERY_URL).json()
 
+# Login con Google
 @app.route("/login")
 def login():
     # Find out what URL to hit for Google login
@@ -100,7 +98,7 @@ def login():
         redirect_uri=request.base_url + "/callback",
         scope=["openid", "email", "profile"],
     )
-    return redirect(request_uri)
+    return {"url": request_uri}
 
 @app.route("/login/callback")
 def callback():
@@ -155,11 +153,16 @@ def callback():
     if not User.get(unique_id):
         User.create(unique_id, users_name, users_email, picture)
 
-    # Begin user session by logging the user in
     login_user(user)
-
     # Send user back to homepage
     return redirect(url_for("index"))
+
+@app.route("/get_virtual_private_networks")
+@login_required
+def get_virtual_private_networks():
+    id_user = current_user.get_id()
+    vpn = PrivateNetwork.get(id_user)
+    return jsonify({'vpn': vpn})
 
 @app.route("/logout")
 @login_required
