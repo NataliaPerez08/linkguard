@@ -170,5 +170,16 @@ def logout():
     logout_user()
     return redirect(url_for("index"))
 
+@app.route("/register_simple", methods=["POST"])
+def register_simple():
+    data = request.get_json()
+    name = data.get("name")
+    email = data.get("email")
+    password = data.get("password")
+    if User.create(name, email, password):
+        return jsonify({"success": True})
+    else:
+        return jsonify({"success": False})
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=443, ssl_context=('./linkguard/orquestador/certs/server.crt', './linkguard/orquestador/certs/server.key'))

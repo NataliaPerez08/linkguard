@@ -1,29 +1,249 @@
+# Deamon del cliente
+import logging
+from xmlrpc.server import SimpleXMLRPCServer
+
+# Es al mismo tiempo cliente
+import xmlrpc.client
+
+# Manejadores de red
+from conn_scapy import verificar_conectividad
+# Importar configurador de Wireguard
+import WG.ConfiguradorWireguardCliente as wg
+
+# Importar os
+from os import geteuid
+from sys import exit
+
+# Importar requests
 import requests
-import os
-server = "https://127.0.0.1:443"
 
-# Crea un servidor sobre el puerto 6443
-from flask import Flask, jsonify, request, redirect, url_for
+# Servidor en la nube
+#dir_servidor="http://natalia-testing.online:8000/"
+#dir_servidor="http://0.0.0.0:8000/"
+#dir_servidor="https://fictional-space-happiness-9w69pjgw4xg3xjx9-8000.app.github.dev"
+dir_servidor="https://127.0.0.1:443"
 
-app = Flask(__name__)
-app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY") or os.urandom(24)
-app.config["SESSION_COOKIE_NAME"] = "google-login-session"
+# Servidor local
+dir_local = "0.0.0.0"
+port_local = 3041
+wg_public_key = None
+wg_private_key = None
+wg_ip = None
+wg_port = None
+actual_user = None
 
-google_login_session = None
+# Create server
+xmlrpc_server = SimpleXMLRPCServer((dir_local,port_local),  logRequests=True)
 
-@app.route("/login")
+# Iniciar configurador de Wireguard
+wg = wg.ConfiguradorWireguardCliente()
+
+# Iniciar logger
+xmlrpc_logger = logging.getLogger('xmlrpc.server')
+
+
+def register_user(name, email, password):
+    """
+    Registra un usuario en el servidor
+    """
+    print(f"Registrando usuario: {name} {email} {password}")
+    # Envia lo anterior a logger 
+    xmlrpc_logger.info(f"Registrando usuario: {name} {email} {password}")
+    # Crea un request que ignore certificados autofirmados
+    response = requests.post(f"{dir_servidor}/register", json={"name": name, "email": email, "password": password}, verify=False)
+
+    if not response:
+        xmlrpc_logger.error("Error al registrar el usuario!")
+        return False
+    xmlrpc_logger.info("Usuario registrado!")
+    return True
+
+def login_user_simple(email, password):
+    """
+    Loguea un usuario en el servidor
+    """
+    print(f"Logueando usuario: {email} {password}")
+    # Envia lo anterior a logger 
+    xmlrpc_logger.info(f"Logueando usuario: {email} {password}")
+    # Crea un request que ignore certificados autofirmados
+    response = requests.post(f"{dir_servidor}/login_simple", json={"email": email, "password": password}, verify=False)
+
+    if not response:
+        xmlrpc_logger.error("Error al loguear el usuario! El correo o la contraseña son incorrectos")
+        return False
+    xmlrpc_logger.info("Usuario logueado!")
+    return True
+
 def login_google():
-    response = requests.get(server + "/login", verify=False)
-    print("Go to the following URL and copy the cookies", response.content)
-    cookies = str(input("Copy the session cookie and press enter"))
-    google_login_session = {"google-login-session":cookies}
-    return google_login_session
+    # El proceso de login es regresar la URL de Google, pedir la session_cookie 
+    response = requests.get(f"{dir_servidor}/login", verify=False)
+    if not response:
+        xmlrpc_logger.error("Error al solicitar el login con Google")
+        return False
+    xmlrpc_logger.info("Login con Google solicitado!")
+    return response
 
-@app.route("/logout")
-def logout():
-    response = requests.get(server + "/logout", verify=False, cookies=google_login_session)
-    print(response.content)
+def identify_me( email, password):
+    """
+    Identifica un usuario en el servidor
+    """
+    is_identified = orquestador.identify_user(email, password)
+    if not is_identified:
+        return False
+    return True
+
+def whoami():
+    """
+    Obtiene el nombre del usuario actual
+    """
+    return orquestador.whoami()
+
+def create_private_network( nombre):
+    """
+    Crea una red privada en el servidor
+    """
+    private_network_id = orquestador.create_private_network(nombre)
+    if private_network_id == -1:
+        return -1
+    return private_network_id
+
+def get_private_networks():
+    """
+    Recupera las redes privadas del servidor
+    """
+    priv_net = orquestador.get_private_networks()
+    return priv_net
+
+def ver_endpoints(id_red_privada):
+    """
+    Obtiene los endpoints de una red privada
+    """
+    endpoints = orquestador.get_endpoints(id_red_privada)
+    return endpoints
+
+def conectar_endpoint( id_endpoint, id_red_privada):
+    print("Conectando endpoint...")
+    # Encontrar la red privada
+    private_network = orquestador.get_private_network_by_id(id_red_privada)
+
+    if private_network == -1:
+        print("No se encontro la red")
+        return
+
+    # Encontrar dispositivo en la red
+    endpoint = private_network.get_endpoint_by_id(id_endpoint)
+
+    if endpoint == -1:
+        print("No se encontro el Endpoint")
+        return
+
+    print(f"Endpoint: {endpoint}")
+    print(f"Red privada: {private_network}")
+    verificar_conectividad(endpoint.ip_addr, private_network.last_host_assigned)
+
+def conectar_endpoint_directo( ip_endpoint, puerto_endpoint):
+    print("Conectando endpoint directo...")
+    verificar_conectividad(ip_endpoint)
+
+def obtener_clave_publica_servidor():
+    print("Obteniendo clave pública...")
+    print(orquestador.get_public_key())
+
+def obtener_configuracion_wireguard_local():
+    print("Obteniendo configuracion..")
+    conf = wg.get_wg_state()
+    print(conf)
+
+def obtener_configuracion_wireguard_servidor():
+    print("Preguntar al servidor")
+    print(orquestador.get_wireguard_config())
+
+def cerrar_sesion():
+    result = orquestador.close_session()
+    return result
+    
 
 
+# Inicializar Wireguard en el cliente
+def init_wireguard_interface( ip_cliente):
+    print("Inicializando Wireguard...")
+    wg_private_key, wg_public_key = wg.create_keys()
+    print("Clave privada: ", wg_private_key)
+    print("Clave pública: ", wg_public_key)
+
+    wg.create_wg_interface(ip_cliente)
+
+    print("Wireguard inicializado!")
+
+
+# Viene del comando: python3 main.py registrar_como_peer <nombre> <id_red_privada> <ip_cliente> <puerto_cliente>
+def configure_as_peer( nombre_endpoint, id_red_privada, ip_cliente, listen_port):
+    print("Configurando como peer...")
+    endpoint_ip_WG,id_endpoint = orquestador.create_endpoint(id_red_privada, nombre_endpoint)
+    if endpoint_ip_WG == -1:
+        print("Error al configurar el peer!")
+        return -1
+    print("IP de Wireguard asignada: ", endpoint_ip_WG)
+
+    # Verificar si la interfaz existe
+    if wg.check_interface():
+        print("Ya existe la interfaz.")
+        return -1
+    else:
+        print("La interfaz no existe.")
+        wg_private_key, wg_public_key = wg.create_wg_interface(ip_cliente)
+
+    # Configurar peer en local
+    allowed_ips = orquestador.get_allowed_ips(id_red_privada)
+    wg.create_peer(wg_public_key, allowed_ips, ip_cliente, listen_port, dir_servidor)
+
+    # Registrar peer en el servidor
+    print("Registrando peer en el servidor...,con la llave publica: ", wg_public_key)
+    ip_wg_peer = orquestador.create_peer(wg_public_key, allowed_ips, endpoint_ip_WG, listen_port, ip_cliente)
+    # Completar endpoint para incluir wg_public_key, allowed_ips, ip_cliente, listen_port
+    result = orquestador.complete_endpoint(id_red_privada, id_endpoint, wg_public_key, allowed_ips, ip_cliente, listen_port)
+    print(result)
+
+    return ip_wg_peer
+
+def register_peer( public_key, allowed_ips, ip_cliente, listen_port):
+    print("Registrando peer en el servidor...")
+    endpoint_ip_WG = orquestador.create_peer(public_key, allowed_ips, ip_cliente, listen_port)
+    if endpoint_ip_WG == -1:
+        print("Error al registrar el peer!")
+        return
+    print("Peer registrado en el servidor!")
+    print("IP de Wireguard asignada: ", endpoint_ip_WG)
+    
+    print("Registrando peer en el cliente...")
+    result = wg.create_peer(public_key, allowed_ips, ip_cliente, listen_port)
+    print("Peer registrado en el cliente!")
+    return result
+
+
+# Iniciar el servidor si se ejecuta como superusuario
 if __name__ == "__main__":
-    app.run(port=6443)
+    print("Iniciando servidor...")
+    if geteuid() != 0:
+        print("Se necesita permisos de administrador para ejecutar el servidor")
+        exit()
+
+    # Guardar las funciones
+    xmlrpc_server.register_function(register_user)
+    xmlrpc_server.register_function(identify_me)
+    xmlrpc_server.register_function(whoami)
+    xmlrpc_server.register_function(create_private_network)
+    xmlrpc_server.register_function(get_private_networks)
+    xmlrpc_server.register_function(ver_endpoints)
+    xmlrpc_server.register_function(conectar_endpoint)
+    xmlrpc_server.register_function(conectar_endpoint_directo)
+    xmlrpc_server.register_function(obtener_clave_publica_servidor)
+    xmlrpc_server.register_function(obtener_configuracion_wireguard_local)
+    xmlrpc_server.register_function(obtener_configuracion_wireguard_servidor)
+    xmlrpc_server.register_function(cerrar_sesion)
+    xmlrpc_server.register_function(init_wireguard_interface)
+    xmlrpc_server.register_function(configure_as_peer)
+    xmlrpc_server.register_function(register_peer)
+
+    print("Servidor iniciado!")
+    xmlrpc_server.serve_forever()
