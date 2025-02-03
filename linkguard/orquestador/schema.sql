@@ -1,8 +1,7 @@
 CREATE TABLE user (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
-  email TEXT UNIQUE NOT NULL,
-  profile_pic TEXT NOT NULL
+  email TEXT UNIQUE NOT NULL
 );
 
 CREATE TABLE vpn (
@@ -24,4 +23,11 @@ CREATE TABLE endpoint(
   private_key TEXT NOT NULL,
   public_key TEXT NOT NULL,
   FOREIGN KEY (vpn_id) REFERENCES vpn(id)
+);
+
+CREATE TABLE user_simple (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT UNIQUE NOT NULL,
+  password TEXT NOT NULL
 );

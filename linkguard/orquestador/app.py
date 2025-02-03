@@ -138,7 +138,6 @@ def callback():
     if userinfo_response.json().get("email_verified"):
         unique_id = userinfo_response.json()["sub"]
         users_email = userinfo_response.json()["email"]
-        picture = userinfo_response.json()["picture"]
         users_name = userinfo_response.json()["given_name"]
     else:
         return "User email not available or not verified by Google.", 400
@@ -146,23 +145,17 @@ def callback():
     # Create a user in your db with the information provided
     # by Google
     user = User(
-        id_=unique_id, name=users_name, email=users_email, profile_pic=picture
+        id_=unique_id, name=users_name, email=users_email
     )
 
     # Doesn't exist? Add it to the database.
     if not User.get(unique_id):
-        User.create(unique_id, users_name, users_email, picture)
+        User.create(unique_id, users_name, users_email)
 
     login_user(user)
     # Send user back to homepage
     return redirect(url_for("index"))
 
-@app.route("/get_virtual_private_networks")
-@login_required
-def get_virtual_private_networks():
-    id_user = current_user.get_id()
-    vpn = PrivateNetwork.get(id_user)
-    return jsonify({'vpn': vpn})
 
 @app.route("/logout")
 @login_required
@@ -178,6 +171,45 @@ def register_simple():
     password = data.get("password")
     if User.create(name, email, password):
         return jsonify({"success": True})
+    else:
+        return jsonify({"success": False})
+    
+@app.route("/login_simple", methods=["POST"])
+def login_simple():
+    data = request.get_json()
+    email = data.get("email")
+    password = data.get("password")
+    user = User.get(email)
+    if user and user.check_password(password):
+        login_user(user)
+        return jsonify({"success": True})
+    else:
+        return jsonify({"success": False})
+    
+@app.route("/whoami")
+def whoami():
+    if current_user.is_authenticated:
+        return jsonify({"user": current_user.name})
+    else:
+        return jsonify({"user": None})
+    
+@app.route("/get_virtual_private_networks")
+@login_required
+def get_virtual_private_networks():
+    id_user = current_user.get_id()
+    vpn = PrivateNetwork.get(id_user)
+    return jsonify({'vpn': vpn})
+
+@app.route("/create_virtual_private_network", methods=["POST"])
+# crear_red_privada <nombre>"
+@login_required
+def create_virtual_private_network():
+    data = request.get_json()
+    name = data.get("name")
+    id_user = current_user.get_id()
+    vpn_id = PrivateNetwork.create_by_name(id_user, name)
+    if vpn_id:
+        return jsonify({"success": True, "name": name, "user_id": id_user, "vpn_id": vpn_id})
     else:
         return jsonify({"success": False})
 

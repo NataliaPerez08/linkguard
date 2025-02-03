@@ -5,7 +5,6 @@ import os
 
 # My serverd
 dir_local = "http://0.0.0.0:3041/"
-
 deamon = xmlrpc.client.ServerProxy(dir_local)
 
 if __name__ == "__main__":
@@ -27,27 +26,38 @@ if __name__ == "__main__":
     # python3 main.py login_google 
     elif comando == "login_google":
         result = deamon.login_google()
-        print(result)
-
-    # python3 main.py identificar_usuario <email> <password>    
-    elif comando == "identificar_usuario":
-        if len(sys.argv) != 4:
-            print("Uso: python3 main.py identificar_usuario <email> <password>")
-            sys.exit()
-        result = deamon.identify_me(sys.argv[2], sys.argv[3])
         if result:
-            print("Usuario identificado!")
+            print("Ir a la siguiente URL para iniciar sesion:", result)
+            session_cookie = input("Ingresa la cookie de sesion: ")
+            deamon.register_session_cookie(session_cookie)
+            print("Sesion iniciada!")
         else:
-            print("Error al identificar el usuario! El correo o la contraseña son incorrectos")
-    
+            print("Error al iniciar sesion con Google")
+
+    # python3 main.py get_session_cookie
+    elif comando == "get_session_cookie":
+        response = deamon.get_session_cookie()
+        print(f"La cookie de sesion es: {response}")
+
+    # python3 main.py login_simple <email> <password>
+    elif comando == "login_simple":
+        if len(sys.argv) != 4:
+            print("Uso: python3 main.py login_simple <email> <password>")
+            sys.exit()
+        result = deamon.login_user_simple(sys.argv[2], sys.argv[3])
+        if result:
+            print("Usuario logueado!")
+        else:
+            print("Error al loguear el usuario! El correo o la contraseña son incorrectos")
+
     # python3 main.py whoami
     elif comando == "whoami":
         print(deamon.whoami())
 
-    # python3 main.py crear_red_privada <nombre>
-    elif comando == "crear_red_privada":
+    # python3 main.py create_vpn <nombre>
+    elif comando == "create_vpn":
         if len(sys.argv) != 3:
-            print("Uso: python3 main.py crear_red_privada <nombre>")
+            print("Uso: python3 main.py create_vpn <nombre>")
             sys.exit()
         deamon.create_private_network(sys.argv[2])
 

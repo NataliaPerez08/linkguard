@@ -41,6 +41,8 @@ wg = wg.ConfiguradorWireguardCliente()
 # Iniciar logger
 xmlrpc_logger = logging.getLogger('xmlrpc.server')
 
+# Cookie de sesion
+global session_cookie
 
 def register_user(name, email, password):
     """
@@ -50,10 +52,10 @@ def register_user(name, email, password):
     # Envia lo anterior a logger 
     xmlrpc_logger.info(f"Registrando usuario: {name} {email} {password}")
     # Crea un request que ignore certificados autofirmados
-    response = requests.post(f"{dir_servidor}/register", json={"name": name, "email": email, "password": password}, verify=False)
+    response = requests.post(f"{dir_servidor}/register_simple", json={"name": name, "email": email, "password": password}, verify=False)
 
     if not response:
-        xmlrpc_logger.error("Error al registrar el usuario!")
+        xmlrpc_logger.error("Error al registrar el usuario! El correo ya esta registrado")
         return False
     xmlrpc_logger.info("Usuario registrado!")
     return True
@@ -77,35 +79,46 @@ def login_user_simple(email, password):
 def login_google():
     # El proceso de login es regresar la URL de Google, pedir la session_cookie 
     response = requests.get(f"{dir_servidor}/login", verify=False)
+    print(response.content)
     if not response:
         xmlrpc_logger.error("Error al solicitar el login con Google")
         return False
     xmlrpc_logger.info("Login con Google solicitado!")
-    return response
+    return response.content
 
-def identify_me( email, password):
+def register_session_cookie(cookie):
     """
-    Identifica un usuario en el servidor
+    Registra la cookie de sesion
     """
-    is_identified = orquestador.identify_user(email, password)
-    if not is_identified:
-        return False
-    return True
+    global session_cookie
+    session_cookie = cookie
+    print(f"La cookie de sesion es: {session_cookie}")
+    return session_cookie
+
+def get_session_cookie():
+    """
+    Obtiene la cookie de sesion
+    """
+    global session_cookie
+    print(f"La cookie de sesion es: {session_cookie}")
+    return session_cookie
 
 def whoami():
     """
     Obtiene el nombre del usuario actual
     """
-    return orquestador.whoami()
+    return requests.get(f"{dir_servidor}/whoami", verify=False).content
 
 def create_private_network( nombre):
     """
     Crea una red privada en el servidor
     """
-    private_network_id = orquestador.create_private_network(nombre)
-    if private_network_id == -1:
+    if not session_cookie:
+        print("No se ha iniciado sesion")
         return -1
-    return private_network_id
+    
+    print({"session": session_cookie})
+    response = requests.post(f"{dir_servidor}/create_virtual_private_network", json={"nombre": nombre}, cookies={"google-login-session": session_cookie}, verify=False)
 
 def get_private_networks():
     """
@@ -230,7 +243,10 @@ if __name__ == "__main__":
 
     # Guardar las funciones
     xmlrpc_server.register_function(register_user)
-    xmlrpc_server.register_function(identify_me)
+    xmlrpc_server.register_function(login_user_simple)
+    xmlrpc_server.register_function(login_google)
+    xmlrpc_server.register_function(register_session_cookie)
+    xmlrpc_server.register_function(get_session_cookie)
     xmlrpc_server.register_function(whoami)
     xmlrpc_server.register_function(create_private_network)
     xmlrpc_server.register_function(get_private_networks)
