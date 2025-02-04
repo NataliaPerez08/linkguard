@@ -59,7 +59,9 @@ if __name__ == "__main__":
         if len(sys.argv) != 3:
             print("Uso: python3 main.py create_vpn <nombre>")
             sys.exit()
-        deamon.create_private_network(sys.argv[2])
+        result = deamon.create_private_network(sys.argv[2])
+        print(result)
+
 
     # python3 main.py ver_redes_privadas
     elif comando == "ver_redes_privadas":

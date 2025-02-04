@@ -207,7 +207,10 @@ def create_virtual_private_network():
     data = request.get_json()
     name = data.get("name")
     id_user = current_user.get_id()
-    vpn_id = PrivateNetwork.create_by_name(id_user, name)
+    default_mask = "24"
+    default_ip = "10.0.0.0"
+    vpn_id = PrivateNetwork.create(id_user, name, default_mask, default_ip)
+    print(vpn_id)
     if vpn_id:
         return jsonify({"success": True, "name": name, "user_id": id_user, "vpn_id": vpn_id})
     else:

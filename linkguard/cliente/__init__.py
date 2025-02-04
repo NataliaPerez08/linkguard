@@ -109,16 +109,16 @@ def whoami():
     """
     return requests.get(f"{dir_servidor}/whoami", verify=False).content
 
-def create_private_network( nombre):
+def create_private_network(name):
     """
     Crea una red privada en el servidor
     """
     if not session_cookie:
         print("No se ha iniciado sesion")
         return -1
-    
-    print({"session": session_cookie})
-    response = requests.post(f"{dir_servidor}/create_virtual_private_network", json={"nombre": nombre}, cookies={"google-login-session": session_cookie}, verify=False)
+    response = requests.post(f"{dir_servidor}/create_virtual_private_network", json={"name": name}, cookies={"google-login-session": session_cookie}, verify=False)
+
+    return response.content
 
 def get_private_networks():
     """
